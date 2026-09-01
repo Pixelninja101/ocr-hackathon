@@ -198,4 +198,9 @@ def enhance_for_qr(cv2_img: np.ndarray) -> List[Tuple[str, np.ndarray]]:
     morph_close = cv2.morphologyEx(gray, cv2.MORPH_CLOSE, kernel_close)
     variants.append(("morph_close", morph_close))
 
+    # 15. Illumination Normalization (eliminates severe shadow gradients across card)
+    bg = cv2.medianBlur(gray, 51)
+    norm_illum = cv2.divide(gray, np.maximum(bg, 1), scale=255).astype(np.uint8)
+    variants.append(("illumination_normalized", norm_illum))
+
     return variants

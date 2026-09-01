@@ -210,6 +210,11 @@ def generate_image_variants(bgr_image: np.ndarray) -> List[Tuple[str, np.ndarray
     upscaled_unsharp = cv2.addWeighted(upscaled_gray, 1.8, upscaled_blurred, -0.8, 0)
     variants.append(("upscaled_2x_unsharp", upscaled_unsharp))
 
+    # 19. Illumination Normalization (eliminates severe shadow gradients across card)
+    bg = cv2.medianBlur(gray, 51)
+    norm_illum = cv2.divide(gray, np.maximum(bg, 1), scale=255).astype(np.uint8)
+    variants.append(("illumination_normalized", norm_illum))
+
     return variants
 
 

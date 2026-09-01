@@ -356,6 +356,27 @@ class TestQREngine:
         assert result["codes"][0]["decoded"] is True
         assert result["codes"][0]["data"] == payload
 
+    def test_uneven_lighting_shadow_qr(self):
+        """Test decoding of QR code with strong illumination gradient / shadow across the card."""
+        payload = "UNEVEN_LIGHTING_SHADOW_QR_TEST"
+        qr_img = generate_qr_image(payload, box_size=8, border=4)
+        qh, qw = qr_img.shape[:2]
+
+        # Apply a diagonal illumination gradient (simulating mobile photo shadow/glare)
+        gradient = np.linspace(0.25, 1.2, qw, dtype=np.float32)
+        shadow_map = np.tile(gradient, (qh, 1))
+        shadow_map_3ch = np.dstack([shadow_map] * 3)
+
+        uneven_qr = np.clip(qr_img.astype(np.float32) * shadow_map_3ch, 0, 255).astype(np.uint8)
+
+        processor = QRProcessor()
+        result = processor.process_image(uneven_qr, filename="shadow_qr.png", file_type="image")
+
+        assert result["success"] is True
+        assert result["qr_detected"] is True
+        assert result["codes"][0]["decoded"] is True
+        assert result["codes"][0]["data"] == payload
+
 
 class TestAadhaarPayloadParser:
     """Tests for authentic UIDAI Aadhaar Secure QR parsing."""
