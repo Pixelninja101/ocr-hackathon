@@ -120,14 +120,22 @@ def calculate_bbox_metrics(points: List[List[float]]) -> dict:
 def enhance_for_qr(cv2_img: np.ndarray) -> List[Tuple[str, np.ndarray]]:
     """
     Generate image processing variations to aid QR detection.
-    # ponytail: Keep it simple. Just grayscale and one standard sharpening pass for blurry images.
+    4 targeted variants covering: blur, low contrast, uneven lighting.
     """
     if cv2_img is None or cv2_img.size == 0:
         return []
 
     gray = cv2.cvtColor(cv2_img, cv2.COLOR_BGR2GRAY) if len(cv2_img.shape) == 3 else cv2_img
-    
+
+    # 1. Sharpened (blur recovery)
     sharpen_kernel = np.array([[0, -1, 0], [-1, 5, -1], [0, -1, 0]], dtype=np.float32)
     sharpened = cv2.filter2D(gray, -1, sharpen_kernel)
-    
-    return [("grayscale", gray), ("sharpened", sharpened)]
+
+    # 2. CLAHE (low contrast / glare on laminated cards)
+    clahe = cv2.createCLAHE(clipLimit=3.0, tileGridSize=(8, 8))
+    clahe_img = clahe.apply(gray)
+
+    # 3. Adaptive threshold (uneven lighting / shadows across document)
+    adaptive = cv2.adaptiveThreshold(gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 25, 5)
+
+    return [("grayscale", gray), ("sharpened", sharpened), ("clahe", clahe_img), ("adaptive_thresh", adaptive)]
