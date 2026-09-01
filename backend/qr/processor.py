@@ -4,6 +4,7 @@ import numpy as np
 
 from .detector import QRCodeDetectorWrapper
 from .decoder import QRCodeDecoderWrapper, add_padding_to_image
+from .parser import parse_qr_payload
 from ..utils.image_handler import calculate_bbox_metrics, enhance_for_qr, normalize_points
 
 
@@ -237,12 +238,19 @@ class QRProcessor:
         formatted_codes: List[Dict[str, Any]] = []
 
         for idx, code in enumerate(unique_codes):
+            parsed = None
+            if code["decoded"] and code.get("data"):
+                try:
+                    parsed = parse_qr_payload(code["data"])
+                except Exception:
+                    pass
 
             formatted_codes.append(
                 {
                     "id": idx + 1,
                     "decoded": code["decoded"],
                     "data": code["data"],
+                    "parsed_data": parsed,
                     "bbox": code["bbox"],
                     "center": code["center"],
                     "width": code["width"],

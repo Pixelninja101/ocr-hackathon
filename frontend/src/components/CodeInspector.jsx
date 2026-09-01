@@ -1,4 +1,4 @@
-﻿import React, { useState } from "react";
+import React, { useState } from "react";
 import {
   Copy, Check, Download, ShieldCheck, AlertTriangle,
   Lock, Link, Wifi, User, CreditCard, MessageSquare,
@@ -64,10 +64,36 @@ function ParsedContent({ parsed, data }) {
         <div className="parsed-type-icon-wrap">
           <IconComponent size={18} />
         </div>
-        <span className="parsed-type-label">{parsed.label}</span>
+        <div className="parsed-type-title-wrap">
+          <span className="parsed-type-label">{parsed.label}</span>
+          {parsed.format && (
+            <span className="parsed-format-badge">{parsed.format}</span>
+          )}
+        </div>
       </div>
 
-      {/* Encrypted / Advisory Notice */}
+      {/* Extracted Photo if available */}
+      {parsed.photo_url && (
+        <div className="parsed-photo-banner">
+          <div className="parsed-photo-wrapper">
+            <img
+              src={parsed.photo_url}
+              alt="Aadhaar Identity Photo"
+              className="parsed-id-photo"
+            />
+          </div>
+          <div className="parsed-photo-meta">
+            <span className="badge badge-emerald">
+              <ShieldCheck size={11} /> Genuine Photo Extracted
+            </span>
+            <span className="parsed-photo-desc">
+              Extracted directly from QR decompressed binary stream.
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Advisory Notice */}
       {parsed.notice && (
         <div className="parsed-notice">
           <Lock size={13} className="parsed-notice-icon" />
@@ -100,7 +126,7 @@ function ParsedContent({ parsed, data }) {
       )}
 
       {/* Fields Table */}
-      {parsed.fields.length > 0 && (
+      {parsed.fields && parsed.fields.length > 0 && (
         <div className="parsed-fields-table">
           {parsed.fields.map((field, i) => (
             <div key={i} className="parsed-field-row">
@@ -143,6 +169,7 @@ export default function CodeInspector({ code, index, isSelected, onSelect }) {
     id = index + 1,
     decoded,
     data,
+    parsed_data,
     bbox,
     center,
     width,
@@ -152,7 +179,8 @@ export default function CodeInspector({ code, index, isSelected, onSelect }) {
     attempts = 1,
   } = code;
 
-  const parsed = decoded && data ? parseQrPayload(data) : null;
+  // Use backend parsed_data if provided, or client-side fallback
+  const parsed = parsed_data || (decoded && data ? parseQrPayload(data) : null);
 
   const handleCopy = () => {
     if (!data) return;

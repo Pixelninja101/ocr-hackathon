@@ -1,15 +1,5 @@
-"""
-Robust Multi-Stage QR Code Decoder.
-Applies perspective rectification, corner ordering, quiet-zone padding,
-upscaling, and multi-variant image processing strictly using OpenCV.
-Fallback: zxingcpp is used when all OpenCV strategies fail.
-
-Root cause fix: after perspective warp, use detectAndDecode() (fresh detection)
-instead of decode() with known destination points — the latter does not work
-reliably once the image has been already warped to a square canvas.
-"""
-
 from typing import List, Optional, Tuple, Union
+# pyrefly: ignore [missing-import]
 import cv2
 import numpy as np
 
@@ -21,10 +11,7 @@ except ImportError:
 
 
 def format_decoded_payload(raw_data: Union[str, bytes]) -> str:
-    """
-    Format raw decoded QR data into a clean, safe string representation.
-    Handles UTF-8 text, Latin-1, and binary byte streams without null truncation.
-    """
+    
     if raw_data is None:
         return ""
 
@@ -53,11 +40,7 @@ def format_decoded_payload(raw_data: Union[str, bytes]) -> str:
 
 
 def order_quad_points(pts: np.ndarray) -> np.ndarray:
-    """
-    Order 4 corner points in clockwise order:
-    [top-left, top-right, bottom-right, bottom-left].
-    Uses polar angles from centroid to handle any arbitrary rotation or diamond skew.
-    """
+    
     pts = np.array(pts, dtype=np.float32).reshape((4, 2))
     center = np.mean(pts, axis=0)
 
@@ -77,11 +60,7 @@ def order_quad_points(pts: np.ndarray) -> np.ndarray:
 
 
 def add_padding_to_image(image: np.ndarray, pad: int = 60) -> Tuple[np.ndarray, int]:
-    """
-    Add a uniform white border around an image to prevent QR corner clipping
-    when the QR code is near image edges or during rotation warps.
-    Returns (padded_image, pad_amount).
-    """
+    
     if pad <= 0:
         return image, 0
     padded = cv2.copyMakeBorder(
@@ -97,23 +76,7 @@ def rectify_quad(
     target_size: int = 500,
     quiet_zone: int = 30,
 ) -> np.ndarray:
-    """
-    Transform a 4-point QR bounding quad into a normalized square image
-    with a clean quiet-zone border. Uses cv2.getPerspectiveTransform and
-    cv2.warpPerspective.
-
-    After rectification, the returned image can be passed directly to
-    detectAndDecode() for a fresh detection pass (not decode() with points).
-
-    Args:
-        image: Source OpenCV image.
-        quad_points: 4 corner coordinates (unordered).
-        target_size: Target square dimension (pixels). Content fills the inner region.
-        quiet_zone: White border width (pixels) around the QR content.
-
-    Returns:
-        Rectified BGR image of shape (target_size, target_size).
-    """
+    
     ordered = order_quad_points(quad_points)
 
     content_size = max(200, target_size - 2 * quiet_zone)
@@ -144,10 +107,7 @@ def rectify_quad(
 
 
 def generate_image_variants(bgr_image: np.ndarray) -> List[Tuple[str, np.ndarray]]:
-    """
-    Generate independent image processing variants for difficult/blurry QR codes.
-    Returns a list of (name, image) tuples, tried in order.
-    """
+    
     variants: List[Tuple[str, np.ndarray]] = []
 
     # 1. Original crop (BGR)
@@ -201,13 +161,7 @@ def try_decode_image(
     image: np.ndarray,
     detectors: list,
 ) -> Tuple[bool, str, str]:
-    """
-    Try to decode a QR code using fresh detection on the given image.
-    Tries each detector with detectAndDecodeBytes and detectAndDecode.
-
-    Returns:
-        (success, payload, method_tag)
-    """
+    
     for det in detectors:
         # Try detectAndDecodeBytes (handles binary/null-byte payloads correctly)
         if hasattr(det, "detectAndDecodeBytes"):
@@ -237,12 +191,7 @@ def try_decode_image(
 def try_decode_with_zxing(
     image: np.ndarray,
 ) -> Tuple[bool, str, str]:
-    """
-    Attempt QR code decoding using zxingcpp as a fallback.
-    Accepts a BGR or grayscale NumPy image.
-    Returns (success, payload, "zxingcpp").
-    No payloads are logged or stored here.
-    """
+    
     if not _ZXING_AVAILABLE or image is None or image.size == 0:
         return False, "", ""
 
@@ -274,10 +223,7 @@ def try_decode_image_multi(
     image: np.ndarray,
     detectors: list,
 ) -> Tuple[bool, List[str], List[np.ndarray], List[str]]:
-    """
-    Try multi-QR detection+decode on the given image.
-    Returns (success, texts, quads, methods).
-    """
+    
     for det in detectors:
         # Try detectAndDecodeBytesMulti
         if hasattr(det, "detectAndDecodeBytesMulti"):
@@ -366,14 +312,7 @@ class QRCodeDecoderWrapper:
     def detect_and_decode_multi(
         self, image: np.ndarray
     ) -> Tuple[bool, List[str], List[np.ndarray], List[str]]:
-        """
-        Simultaneously detect and decode multiple QR codes in an image.
-        Tries both detectors with multi and single fallback.
-        Final fallback: zxingcpp (when all OpenCV strategies fail).
-
-        Returns:
-            (success: bool, decoded_texts: List[str], quads: List[np.ndarray], methods: List[str])
-        """
+        
         if image is None or image.size == 0:
             return False, [], [], []
 
@@ -428,17 +367,7 @@ class QRCodeDecoderWrapper:
     def decode_quad(
         self, image: np.ndarray, quad_points: np.ndarray
     ) -> Tuple[bool, Optional[str], Optional[str], int]:
-        """
-        Execute multi-stage decoding for a specific detected 4-point QR bounding quad.
-
-        KEY FIX: After perspective warp, calls detectAndDecode() (fresh detection)
-        instead of decode() with known destination points. The latter fails because
-        OpenCV's decode() expects points in the original image coordinate space,
-        not in the warped canvas space.
-
-        Returns:
-            (decoded: bool, payload: Optional[str], decode_method: Optional[str], attempts: int)
-        """
+        
         if image is None or image.size == 0 or quad_points is None:
             return False, None, None, 0
 

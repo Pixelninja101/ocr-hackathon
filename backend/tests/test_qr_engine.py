@@ -207,3 +207,71 @@ class TestQREngine:
         assert result["codes"][0]["decoded"] is True
         assert "SECURE_BYTE_STREAM" in result["codes"][0]["data"]
 
+
+class TestAadhaarPayloadParser:
+    """Tests for authentic UIDAI Aadhaar Secure QR parsing."""
+
+    def test_aadhaar_secure_qr_v2_parsing(self):
+        import zlib
+        from backend.qr.parser import parse_qr_payload
+
+        fields = [
+            "V2", "3", "123456789012345678", "Sunita Sharma", "12-05-1992",
+            "F", "W/O: Rajesh Sharma", "Bengaluru", "Near Metro Station",
+            "45/A", "Indiranagar", "560038", "Indiranagar PO", "Karnataka",
+            "100 Feet Road", "Bengaluru East", "Bengaluru", "9876"
+        ]
+        decompressed = b"\xff".join([f.encode("latin-1") for f in fields]) + b"\xff" + b"image_bytes_dummy" + (b"\x00" * 320)
+        compressed = zlib.compress(decompressed)
+        val = int.from_bytes(compressed, "big")
+        val_str = str(val)
+
+        parsed = parse_qr_payload(val_str)
+        assert parsed is not None
+        assert parsed["type"] == "aadhaar_secure"
+        assert parsed["version"] == "V2"
+        assert parsed["raw_attributes"]["name"] == "Sunita Sharma"
+        assert parsed["raw_attributes"]["dob"] == "12-05-1992"
+        assert parsed["raw_attributes"]["gender"] == "F"
+        assert parsed["raw_attributes"]["pincode"] == "560038"
+        assert parsed["raw_attributes"]["state"] == "Karnataka"
+        assert parsed["raw_attributes"]["last_4_digits_mobile_no"] == "9876"
+
+    def test_aadhaar_secure_qr_v1_parsing(self):
+        import zlib
+        from backend.qr.parser import parse_qr_payload
+
+        fields = [
+            "2", "987654321012345678", "Vikram Patel", "20-03-1985",
+            "M", "S/O: Mohan Patel", "Ahmedabad", "Opposite Garden",
+            "12", "Navrangpura", "380009", "Navrangpura PO", "Gujarat",
+            "CG Road", "Ahmedabad City", "Ahmedabad"
+        ]
+        decompressed = b"\xff".join([f.encode("latin-1") for f in fields]) + b"\xff" + b"image_bytes_dummy" + (b"\x00" * 288)
+        compressed = zlib.compress(decompressed)
+        val = int.from_bytes(compressed, "big")
+        val_str = str(val)
+
+        parsed = parse_qr_payload(val_str)
+        assert parsed is not None
+        assert parsed["type"] == "aadhaar_secure"
+        assert parsed["version"] == "V1"
+        assert parsed["raw_attributes"]["name"] == "Vikram Patel"
+        assert parsed["raw_attributes"]["dob"] == "20-03-1985"
+        assert parsed["raw_attributes"]["gender"] == "M"
+        assert parsed["raw_attributes"]["district"] == "Ahmedabad"
+        assert parsed["raw_attributes"]["state"] == "Gujarat"
+
+    def test_aadhaar_legacy_xml_parsing(self):
+        from backend.qr.parser import parse_qr_payload
+
+        xml_data = '<PrintLetterBarcodeData uid="123456789012" name="Anita Roy" gender="F" yob="1994" co="D/O: Subhash Roy" house="10" street="Park Street" loc="Park Circus" vtc="Kolkata" dist="Kolkata" state="West Bengal" pc="700016" />'
+        parsed = parse_qr_payload(xml_data)
+        assert parsed is not None
+        assert parsed["type"] == "aadhaar_old"
+        assert parsed["raw_attributes"]["name"] == "Anita Roy"
+        assert parsed["raw_attributes"]["gender"] == "F"
+        assert parsed["raw_attributes"]["yob"] == "1994"
+        assert parsed["raw_attributes"]["pc"] == "700016"
+        assert parsed["raw_attributes"]["state"] == "West Bengal"
+
