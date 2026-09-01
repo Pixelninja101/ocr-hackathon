@@ -199,4 +199,8 @@ success, payloads, quads, methods = decoder.detect_and_decode_multi(image)
 ## Limitations
 
 The module uses multiple detection and decoding strategies to improve reliability. However, severely damaged, heavily blurred, extremely low-resolution, or partially missing QR codes may still be impossible to decode.
+
+````
+
+The important part is the **three backticks (` ``` `) immediately after `350px`**. That closes the code block, so the rest of your README will render normally and cleanly.
 ````
