@@ -65,6 +65,8 @@ Multiple target sizes are used:
 700px
 350px
 
+---
+
 Binary Payload Handling
 
 Binary QR payloads are decoded using:
