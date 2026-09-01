@@ -1205,3 +1205,222 @@
 .mt-3 {
   margin-top: 12px;
 }
+
+/* ==========================================================================
+   Parsed Payload Human-Readable UI Design System
+   ========================================================================== */
+
+.parsed-content {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+  background: rgba(15, 23, 42, 0.65);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-subtle);
+}
+
+.parsed-type-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.parsed-type-icon-wrap {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(56, 189, 248, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  color: var(--accent-cyan-light);
+}
+
+.type-aadhaar-old .parsed-type-icon-wrap {
+  background: rgba(16, 185, 129, 0.15);
+  border-color: rgba(16, 185, 129, 0.35);
+  color: #34d399;
+}
+
+.type-aadhaar-secure .parsed-type-icon-wrap {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: rgba(245, 158, 11, 0.35);
+  color: #fbbf24;
+}
+
+.type-upi .parsed-type-icon-wrap {
+  background: rgba(168, 85, 247, 0.15);
+  border-color: rgba(168, 85, 247, 0.35);
+  color: #c084fc;
+}
+
+.type-wifi .parsed-type-icon-wrap {
+  background: rgba(59, 130, 246, 0.15);
+  border-color: rgba(59, 130, 246, 0.35);
+  color: #60a5fa;
+}
+
+.parsed-type-label {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.parsed-notice {
+  display: flex;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  font-size: 0.775rem;
+  line-height: 1.45;
+  color: #fef3c7;
+  align-items: flex-start;
+}
+
+.parsed-notice-icon {
+  flex-shrink: 0;
+  color: var(--accent-amber);
+  margin-top: 2px;
+}
+
+.parsed-map-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.775rem;
+  color: var(--accent-cyan-light);
+  text-decoration: none;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  background: rgba(56, 189, 248, 0.1);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  width: fit-content;
+  transition: all 0.15s ease;
+}
+
+.parsed-map-link:hover {
+  background: rgba(56, 189, 248, 0.2);
+  border-color: var(--accent-cyan-light);
+}
+
+.parsed-fields-table {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: rgba(10, 14, 23, 0.55);
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-subtle);
+}
+
+.parsed-field-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 5px 0;
+  border-bottom: 1px solid rgba(30, 41, 59, 0.6);
+  font-size: 0.8rem;
+}
+
+.parsed-field-row:last-child {
+  border-bottom: none;
+}
+
+.parsed-field-key {
+  color: var(--text-secondary);
+  font-weight: 600;
+  flex-shrink: 0;
+  min-width: 120px;
+}
+
+.parsed-field-value {
+  color: var(--text-primary);
+  text-align: right;
+  word-break: break-word;
+  font-family: var(--font-mono);
+}
+
+.sensitive-value-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sensitive-masked {
+  letter-spacing: 2px;
+  color: var(--text-muted);
+}
+
+.btn-toggle-sensitive {
+  background: rgba(30, 41, 59, 0.8);
+  border: 1px solid rgba(71, 85, 105, 0.4);
+  color: var(--text-secondary);
+  border-radius: 4px;
+  padding: 2px 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-toggle-sensitive:hover {
+  color: var(--text-primary);
+  border-color: var(--accent-cyan-light);
+}
+
+/* Collapsible Raw Data */
+.raw-data-collapsible {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: rgba(10, 14, 23, 0.4);
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+.raw-data-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  cursor: pointer;
+  user-select: none;
+  background: rgba(15, 23, 42, 0.6);
+  transition: background 0.15s ease;
+}
+
+.raw-data-summary:hover {
+  background: rgba(30, 41, 59, 0.6);
+}
+
+.raw-data-summary-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.payload-stats-inline {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.raw-data-body {
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-top: 1px solid var(--border-subtle);
+}
