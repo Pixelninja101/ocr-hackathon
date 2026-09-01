@@ -1,0 +1,9 @@
+# Risk Engine Dependencies
+pytest>=8.0.0
+fastapi>=0.110.0
+uvicorn>=0.28.0
+python-multipart>=0.0.9
+httpx>=0.27.0
+
+# External OCR Package (editable link or local package)
+# Install via: python -m pip install -e C:\icons\ocr
