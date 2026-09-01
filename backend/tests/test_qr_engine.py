@@ -207,6 +207,155 @@ class TestQREngine:
         assert result["codes"][0]["decoded"] is True
         assert "SECURE_BYTE_STREAM" in result["codes"][0]["data"]
 
+    def test_inaccurate_quad_fallback_decoding(self):
+        payload = "AADHAAR_INACCURATE_QUAD_RECOVERY_TEST"
+        qr_img = generate_qr_image(payload, box_size=8, border=4)
+        qh, qw = qr_img.shape[:2]
+
+        # Place QR inside a larger canvas
+        canvas = np.ones((qh + 200, qw + 200, 3), dtype=np.uint8) * 255
+        x_off, y_off = 100, 100
+        canvas[y_off : y_off + qh, x_off : x_off + qw] = qr_img
+
+        # Ground truth quad: corners of QR in canvas
+        exact_quad = np.array([
+            [x_off, y_off],
+            [x_off + qw, y_off],
+            [x_off + qw, y_off + qh],
+            [x_off, y_off + qh],
+        ], dtype=np.float32)
+
+        # Intentionally perturb/contract quadrilateral vertices (simulating imprecise detection)
+        center = np.mean(exact_quad, axis=0)
+        imprecise_quad = center + (exact_quad - center) * 0.85  # 15% contracted
+
+        decoder = QRCodeDecoderWrapper()
+        ok, data, method, attempts = decoder.decode_quad(canvas, imprecise_quad)
+
+        assert ok is True
+        assert data == payload
+        assert attempts >= 1
+
+    def test_low_contrast_detected_qr_fallback(self):
+        payload = "LOW_CONTRAST_FALLBACK_TEST"
+        qr_img = generate_qr_image(payload, box_size=6, border=3)
+        qh, qw = qr_img.shape[:2]
+
+        # Reduce contrast
+        low_contrast_qr = (qr_img.astype(np.float32) * 0.35 + 120).astype(np.uint8)
+
+        canvas = np.ones((qh + 150, qw + 150, 3), dtype=np.uint8) * 230
+        canvas[75 : 75 + qh, 75 : 75 + qw] = low_contrast_qr
+
+        quad = np.array([
+            [75, 75],
+            [75 + qw, 75],
+            [75 + qw, 75 + qh],
+            [75, 75 + qh],
+        ], dtype=np.float32)
+
+        decoder = QRCodeDecoderWrapper()
+        ok, data, method, attempts = decoder.decode_quad(canvas, quad)
+
+        assert ok is True
+        assert data == payload
+
+    def test_dim_underexposed_qr_decoding(self):
+        """Test decoding of dim / underexposed QR code."""
+        payload = "DIM_UNDEREXPOSED_QR_TEST_DATA"
+        qr_img = generate_qr_image(payload, box_size=8, border=3)
+        # Strongly dim the image (simulate low-light camera capture)
+        dim_qr = (qr_img.astype(np.float32) * 0.3).astype(np.uint8)
+
+        processor = QRProcessor()
+        result = processor.process_image(dim_qr, filename="dim_test.png", file_type="image")
+
+        assert result["success"] is True
+        assert result["qr_detected"] is True
+        assert result["codes"][0]["decoded"] is True
+        assert result["codes"][0]["data"] == payload
+
+    def test_blurry_qr_decoding(self):
+        """Test decoding of out-of-focus / motion-blurred QR code."""
+        payload = "BLURRY_MOTION_QR_TEST_DATA"
+        qr_img = generate_qr_image(payload, box_size=10, border=4)
+        # Apply Gaussian blur
+        blurred_qr = cv2.GaussianBlur(qr_img, (5, 5), sigmaX=1.5)
+
+        processor = QRProcessor()
+        result = processor.process_image(blurred_qr, filename="blurry_test.png", file_type="image")
+
+        assert result["success"] is True
+        assert result["qr_detected"] is True
+        assert result["codes"][0]["decoded"] is True
+        assert result["codes"][0]["data"] == payload
+
+    def test_noisy_qr_decoding(self):
+        """Test decoding of sensor-noise corrupted QR code."""
+        payload = "NOISY_SENSOR_QR_TEST_DATA"
+        qr_img = generate_qr_image(payload, box_size=8, border=4)
+        # Add Gaussian noise
+        noise = np.random.normal(0, 25, qr_img.shape).astype(np.float32)
+        noisy_qr = np.clip(qr_img.astype(np.float32) + noise, 0, 255).astype(np.uint8)
+
+        processor = QRProcessor()
+        result = processor.process_image(noisy_qr, filename="noisy_test.png", file_type="image")
+
+        assert result["success"] is True
+        assert result["qr_detected"] is True
+        assert result["codes"][0]["decoded"] is True
+        assert result["codes"][0]["data"] == payload
+
+    def test_arbitrary_rotated_qr_in_document(self):
+        """Test decoding of QR code rotated at an arbitrary angle (e.g. 37 degrees) in a document."""
+        payload = "ARBITRARY_ROTATION_37DEG_TEST"
+        qr_img = generate_qr_image(payload, box_size=8, border=4)
+        qh, qw = qr_img.shape[:2]
+
+        # Embed inside a larger document canvas to avoid clipping corners when rotated
+        canvas_dim = int(max(qh, qw) * 2.2)
+        canvas = np.ones((canvas_dim, canvas_dim, 3), dtype=np.uint8) * 255
+        oy = (canvas_dim - qh) // 2
+        ox = (canvas_dim - qw) // 2
+        canvas[oy : oy + qh, ox : ox + qw] = qr_img
+
+        # Rotate canvas by 37 degrees
+        center = (canvas_dim / 2.0, canvas_dim / 2.0)
+        M = cv2.getRotationMatrix2D(center, 37.0, 1.0)
+        rotated_doc = cv2.warpAffine(
+            canvas, M, (canvas_dim, canvas_dim), flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT, borderValue=(255, 255, 255)
+        )
+
+        processor = QRProcessor()
+        result = processor.process_image(rotated_doc, filename="rotated_37deg.png", file_type="image")
+
+        assert result["success"] is True
+        assert result["qr_detected"] is True
+        assert result["codes"][0]["decoded"] is True
+        assert result["codes"][0]["data"] == payload
+
+    def test_skewed_tilted_perspective_qr(self):
+        """Test decoding of perspective-distorted / tilted QR code."""
+        payload = "PERSPECTIVE_TILTED_SKEWED_QR"
+        qr_img = generate_qr_image(payload, box_size=8, border=4)
+        qh, qw = qr_img.shape[:2]
+
+        src_pts = np.array([[0, 0], [qw, 0], [qw, qh], [0, qh]], dtype=np.float32)
+        # Skew perspective (one side narrower and tilted)
+        dst_pts = np.array([[20, 15], [qw - 40, 35], [qw - 10, qh - 20], [30, qh - 10]], dtype=np.float32)
+        H = cv2.getPerspectiveTransform(src_pts, dst_pts)
+        warped_qr = cv2.warpPerspective(
+            qr_img, H, (qw + 50, qh + 50), borderMode=cv2.BORDER_CONSTANT, borderValue=(255, 255, 255)
+        )
+
+        processor = QRProcessor()
+        result = processor.process_image(warped_qr, filename="tilted_qr.png", file_type="image")
+
+        assert result["success"] is True
+        assert result["qr_detected"] is True
+        assert result["codes"][0]["decoded"] is True
+        assert result["codes"][0]["data"] == payload
+
 
 class TestAadhaarPayloadParser:
     """Tests for authentic UIDAI Aadhaar Secure QR parsing."""

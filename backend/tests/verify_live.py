@@ -6,7 +6,7 @@ def test_upload(filename, page=0):
         file_bytes = f.read()
     files = {"file": (filename, file_bytes)}
     data = {"page": str(page)}
-    res = httpx.post("http://127.0.0.1:8001/api/qr/scan", files=files, data=data)
+    res = httpx.post("http://127.0.0.1:8001/api/qr/scan", files=files, data=data, timeout=30.0)
     print(f"=== Scanning {filename} (page={page}) ===")
     print("HTTP Status:", res.status_code)
     json_data = res.json()
