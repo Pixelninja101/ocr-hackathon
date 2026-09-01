@@ -1,0 +1,132 @@
+# Risk Evaluation Module — Integration Documentation
+## 1. What does this module do?
+
+The Risk Evaluation module is responsible for determining whether an uploaded document should be considered low, medium, or high risk.
+
+It combines multiple independent signals produced by different parts of the system:
+
+OCR confidence
+QR verification
+Cross-field validation
+Image tampering analysis
+OCR confidence
+QR verification
+Cross-field validation
+Image tampering analysis
+          ↓
+     Risk Evaluation
+          ↓
+   Final Risk Score
+          ↓
+   LOW / MEDIUM / HIGH
+
+The module does not perform OCR or QR decoding itself.
+
+Instead, it receives their results and converts them into risk signals.
+
+## 2. What input does the module need?
+
+There are two stages.
+
+Stage 1 — Tampering Detection
+
+Your tampering detector needs the actual document image.
+
+image
+
+It can be provided as:
+
+image_path
+
+or an OpenCV/Numpy image:
+
+numpy.ndarray
+Example:
+tampering_result = analyze_document_image(
+    "uploads/aadhaar.jpg"
+)
+## 3. What does tampering detection output?
+
+The tampering detector should return information conceptually like:
+
+{
+    "score": 0.42,
+    "level": "MEDIUM",
+    "signals": {
+        "ela": 0.35,
+        "copy_move": 0.51,
+        "region_inconsistency": 0.40,
+        "text_anomaly": 0.45
+    },
+    "flags": [
+        "Possible copy-move manipulation"
+    ]
+}
+## 4. What does the Risk Engine need from OCR?
+
+The Risk Engine does not need the entire OCR implementation.
+
+It needs the OCR result/signals.
+
+The primary signal is:
+
+ocr_result.confidence
+## 5. Connecting OCR to Risk Evaluation
+
+The OCR developer already has:
+
+ocr_result = run_ocr(
+    preprocessed,
+    lang="eng+hin"
+)
+
+After OCR has completed, create the signal for the Risk Engine:
+
+ocr_signal = {
+    "confidence": ocr_result.confidence
+}
+
+Then pass it to:
+
+calculate_risk(...)
+## 6. What does the Risk Engine need from QR?
+
+The QR component should provide three separate states:
+
+qr_signal = {
+    "detected": True,
+    "decoded": True,
+    "verified": True
+}
+
+These represent:
+
+detected
+
+Was a QR code found?
+
+decoded
+
+Could the QR payload be read?
+
+verified
+
+Was the QR data successfully verified?
+
+## 7. Connecting QR to Risk Evaluation
+
+The QR developer should finish their processing and create:
+
+qr_signal = {
+    "detected": qr_detected,
+    "decoded": qr_decoded,
+    "verified": qr_verified
+}
+
+Then pass:
+
+qr_result=qr_signal
+
+to:
+
+calculate_risk()
