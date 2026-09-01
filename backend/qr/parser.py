@@ -1,4 +1,4 @@
-﻿"""
+"""
 Payload Parser for QR Codes.
 Specialized in UIDAI Aadhaar Secure QR (V1/V2 binary compressed),
 Aadhaar Legacy XML, URLs, JSON, and standard formats.
@@ -70,75 +70,84 @@ def parse_aadhaar_secure_qr(raw_input: Union[str, bytes, int]) -> Optional[Dict[
             except Exception:
                 pass
 
-    if not decompressed or len(decompressed) < 300:
+    if not decompressed or len(decompressed) < 250:
         return None
 
-    # Step 2: Identify delimiters (0xFF / 255)
+    # Step 2: Identify delimiters (0xFF / 255) and split segments
     delimiters = [-1] + [i for i, b in enumerate(decompressed) if b == 255]
-    if len(delimiters) < 16:
+    if len(delimiters) < 14:
         return None
 
-    # Step 3: Determine schema version (V2 has 'V2' header and last_4_digits_mobile_no)
-    is_v2 = False
-    try:
-        header_text = decompressed[:2].decode("latin-1", errors="ignore")
-        if header_text == "V2":
-            is_v2 = True
-    except Exception:
-        pass
+    raw_segments = decompressed.split(b"\xff")
+    segments = [s.decode("latin-1", errors="ignore").strip() for s in raw_segments]
 
-    if is_v2:
-        field_names = [
-            "version",
-            "email_mobile_status",
-            "referenceid",
-            "name",
-            "dob",
-            "gender",
-            "careof",
-            "district",
-            "landmark",
-            "house",
-            "location",
-            "pincode",
-            "postoffice",
-            "state",
-            "street",
-            "subdistrict",
-            "vtc",
-            "last_4_digits_mobile_no",
-        ]
+    # Step 3: Determine reference ID anchor index dynamically
+    # Look for the anchor where segment[i] is numeric ref_id, segment[i+2] is date, and segment[i+3] is gender
+    ref_idx = -1
+    for i in range(len(segments) - 3):
+        s_ref = segments[i]
+        s_dob = segments[i + 2]
+        s_gen = segments[i + 3]
+        is_dob = bool(re.search(r"\d{2}[-/]\d{2}[-/]\d{4}|\b(19|20)\d{2}\b", s_dob))
+        is_gen = s_gen.upper() in ("M", "F", "T", "MALE", "FEMALE", "TRANSGENDER")
+        if is_dob and is_gen:
+            ref_idx = i
+            break
+
+    # Secondary fallback: find first segment with length >= 12 that is numeric
+    if ref_idx == -1:
+        for i, s in enumerate(segments[:6]):
+            if s.isdigit() and len(s) >= 12:
+                ref_idx = i
+                break
+
+    # Final fallback if headers exist
+    if ref_idx == -1:
+        ref_idx = 2 if len(segments) > 2 and segments[0].upper() in ("V1", "V2") else 1
+
+    # Step 4: Extract email_mobile_status from preceding segment
+    if ref_idx > 0 and segments[ref_idx - 1].isdigit():
+        status_code = segments[ref_idx - 1]
+    elif ref_idx > 1 and segments[ref_idx - 2].isdigit():
+        status_code = segments[ref_idx - 2]
     else:
-        field_names = [
-            "email_mobile_status",
-            "referenceid",
-            "name",
-            "dob",
-            "gender",
-            "careof",
-            "district",
-            "landmark",
-            "house",
-            "location",
-            "pincode",
-            "postoffice",
-            "state",
-            "street",
-            "subdistrict",
-            "vtc",
-        ]
+        status_code = "0"
 
-    # Step 4: Extract demographic fields
-    raw_fields: Dict[str, str] = {}
-    for i, field_name in enumerate(field_names):
-        if i + 1 < len(delimiters):
-            start = delimiters[i] + 1
-            end = delimiters[i + 1]
-            raw_fields[field_name] = decompressed[start:end].decode("latin-1", errors="ignore").strip()
+    # Step 5: Map fields in exact UIDAI order relative to ref_idx
+    field_order = [
+        "referenceid",
+        "name",
+        "dob",
+        "gender",
+        "careof",
+        "district",
+        "landmark",
+        "house",
+        "location",
+        "pincode",
+        "postoffice",
+        "state",
+        "street",
+        "subdistrict",
+        "vtc",
+        "last_4_digits_mobile_no",
+    ]
+
+    raw_fields: Dict[str, str] = {"email_mobile_status": status_code}
+    for offset, f_name in enumerate(field_order):
+        idx = ref_idx + offset
+        if idx < len(segments):
+            raw_fields[f_name] = segments[idx]
         else:
-            raw_fields[field_name] = ""
+            raw_fields[f_name] = ""
 
-    # Step 5: Format gender and address
+    # Clean last_4_digits_mobile_no if it contains non-numeric data
+    if raw_fields.get("last_4_digits_mobile_no") and not (
+        raw_fields["last_4_digits_mobile_no"].isdigit() and len(raw_fields["last_4_digits_mobile_no"]) == 4
+    ):
+        raw_fields["last_4_digits_mobile_no"] = ""
+
+    # Step 6: Format gender and address
     raw_gender = raw_fields.get("gender", "")
     gender_map = {"M": "Male", "F": "Female", "T": "Transgender"}
     gender = gender_map.get(raw_gender.upper(), raw_gender)
@@ -158,8 +167,7 @@ def parse_aadhaar_secure_qr(raw_input: Union[str, bytes, int]) -> Optional[Dict[
     if pincode and formatted_address:
         formatted_address += f" - {pincode}"
 
-    # Step 6: Status of mobile and email
-    status_code = raw_fields.get("email_mobile_status", "0")
+    # Step 7: Status of mobile and email
     try:
         status_num = int(status_code)
     except ValueError:
@@ -168,19 +176,17 @@ def parse_aadhaar_secure_qr(raw_input: Union[str, bytes, int]) -> Optional[Dict[
     email_registered = status_num in (1, 3)
     mobile_registered = status_num in (2, 3)
 
-    # Step 7: Reference ID and masked Aadhaar
+    # Step 8: Reference ID and masked Aadhaar
     ref_id = raw_fields.get("referenceid", "")
     masked_aadhaar = f"XXXX XXXX {ref_id[:4]}" if len(ref_id) >= 4 else (ref_id or None)
 
-    # Step 8: Extract photo bytes if present
+    # Step 9: Extract photo bytes if present
     photo_base64: Optional[str] = None
-    last_field_delim_idx = len(field_names)
+    has_mobile_4 = bool(raw_fields.get("last_4_digits_mobile_no"))
+    last_field_delim_idx = ref_idx + (16 if has_mobile_4 else 15)
+
     if len(delimiters) > last_field_delim_idx:
         photo_start = delimiters[last_field_delim_idx] + 1
-        # Photo ends before hashes/signature at end of stream
-        # Signature is last 256 bytes
-        # Email hash: 32 bytes (if email registered)
-        # Mobile hash: 32 bytes (if mobile registered)
         tail_offset = 256
         if status_num == 3:
             tail_offset += 64
@@ -200,7 +206,7 @@ def parse_aadhaar_secure_qr(raw_input: Union[str, bytes, int]) -> Optional[Dict[
             except Exception:
                 pass
 
-    # Build structured field list for UI display
+    # Step 10: Build structured field list for UI display
     display_fields = []
     if masked_aadhaar:
         display_fields.append({"key": "Aadhaar / Ref", "value": masked_aadhaar, "sensitive": True})
@@ -228,6 +234,7 @@ def parse_aadhaar_secure_qr(raw_input: Union[str, bytes, int]) -> Optional[Dict[
     else:
         display_fields.append({"key": "Email", "value": "Not Registered"})
 
+    is_v2 = segments[0].upper() == "V2" if segments else False
     return {
         "type": "aadhaar_secure",
         "label": f"UIDAI Aadhaar Secure QR ({'V2' if is_v2 else 'V1'})",

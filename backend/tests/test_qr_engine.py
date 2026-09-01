@@ -241,6 +241,7 @@ class TestAadhaarPayloadParser:
         import zlib
         from backend.qr.parser import parse_qr_payload
 
+        # V1 without header
         fields = [
             "2", "987654321012345678", "Vikram Patel", "20-03-1985",
             "M", "S/O: Mohan Patel", "Ahmedabad", "Opposite Garden",
@@ -256,11 +257,28 @@ class TestAadhaarPayloadParser:
         assert parsed is not None
         assert parsed["type"] == "aadhaar_secure"
         assert parsed["version"] == "V1"
+        assert parsed["raw_attributes"]["referenceid"] == "987654321012345678"
         assert parsed["raw_attributes"]["name"] == "Vikram Patel"
         assert parsed["raw_attributes"]["dob"] == "20-03-1985"
         assert parsed["raw_attributes"]["gender"] == "M"
         assert parsed["raw_attributes"]["district"] == "Ahmedabad"
         assert parsed["raw_attributes"]["state"] == "Gujarat"
+
+        # V1 with V1 header
+        fields_v1_hdr = [
+            "V1", "3", "123456789012345678", "Rahul Sharma", "14-02-1990",
+            "M", "S/O: Om Sharma", "Jaipur", "Civil Lines",
+            "12", "Near GPO", "302001", "GPO", "Rajasthan",
+            "Station Rd", "Jaipur", "Jaipur"
+        ]
+        decomp_v1_hdr = b"\xff".join([f.encode("latin-1") for f in fields_v1_hdr]) + b"\xff" + b"photo" + (b"\x00" * 320)
+        parsed_v1_hdr = parse_qr_payload(str(int.from_bytes(zlib.compress(decomp_v1_hdr), "big")))
+        assert parsed_v1_hdr is not None
+        assert parsed_v1_hdr["raw_attributes"]["referenceid"] == "123456789012345678"
+        assert parsed_v1_hdr["raw_attributes"]["name"] == "Rahul Sharma"
+        assert parsed_v1_hdr["raw_attributes"]["dob"] == "14-02-1990"
+        assert parsed_v1_hdr["raw_attributes"]["gender"] == "M"
+        assert parsed_v1_hdr["raw_attributes"]["state"] == "Rajasthan"
 
     def test_aadhaar_legacy_xml_parsing(self):
         from backend.qr.parser import parse_qr_payload
