@@ -64,44 +64,62 @@ Multiple target sizes are used:
 500px
 700px
 350px
+````
 
 ---
 
-Binary Payload Handling
+## Binary Payload Handling
 
 Binary QR payloads are decoded using:
 
+```python
 detectAndDecodeBytes()
 detectAndDecodeBytesMulti()
+```
 
 Payload data is processed in the following order:
 
-UTF-8 decoding
-Latin-1 decoding
-Hexadecimal representation
+1. UTF-8 decoding
+2. Latin-1 decoding
+3. Hexadecimal representation
 
-ZXing Fallback
+---
 
-When OpenCV decoding fails, zxingcpp is optionally used as a fallback.
+## ZXing Fallback
+
+When OpenCV decoding fails, `zxingcpp` is optionally used as a fallback.
 
 Supported formats include:
 
-QR Code
-Micro QR Code
-RMQR Code
+* QR Code
+* Micro QR Code
+* RMQR Code
 
 ZXing is applied to the original image, cropped QR regions, thresholded images, upscaled images, and perspective-rectified images.
 
-Installation
+---
+
+## Installation
+
+```powershell
 py -3.12 -m venv venv
 .\venv\Scripts\activate
 pip install opencv-python numpy
+```
 
 Optional ZXing-C++ support:
 
+```powershell
 pip install zxing-cpp
-Basic Usage
+```
+
+---
+
+## Basic Usage
+
+```python
 import cv2
+
 from qr_detector import QRCodeDetectorWrapper
 from qr_decoder import QRCodeDecoderWrapper
 
@@ -123,33 +141,63 @@ if detected:
             print("Decoded Data:", payload)
             print("Method:", method)
             print("Attempts:", attempts)
-Multi-QR Decoding
+```
+
+---
+
+## Multi-QR Decoding
+
+```python
 success, payloads, quads, methods = decoder.detect_and_decode_multi(image)
 
 if success:
     for payload, method in zip(payloads, methods):
         print("Decoded Data:", payload)
         print("Method:", method)
-Return Values
-Detection
+```
+
+---
+
+## Return Values
+
+### Detection
+
+```python
 detected, quads = detector.detect_multi(image)
-detected: Whether one or more QR codes were detected
-quads: List of QR corner points
-Single QR Decoding
+```
+
+* `detected`: Whether one or more QR codes were detected
+* `quads`: List of QR corner points
+
+### Single QR Decoding
+
+```python
 success, payload, method, attempts = decoder.decode_quad(
     image,
     quad_points
 )
-success: Whether decoding was successful
-payload: Decoded QR data
-method: Successful decoding strategy
-attempts: Number of decoding attempts
-Multiple QR Decoding
+```
+
+* `success`: Whether decoding was successful
+* `payload`: Decoded QR data
+* `method`: Successful decoding strategy
+* `attempts`: Number of decoding attempts
+
+### Multiple QR Decoding
+
+```python
 success, payloads, quads, methods = decoder.detect_and_decode_multi(image)
-success: Whether QR codes were detected or decoded
-payloads: Decoded QR payloads
-quads: QR corner coordinates
-methods: Decoding methods used
-Limitations
+```
+
+* `success`: Whether QR codes were detected or decoded
+* `payloads`: Decoded QR payloads
+* `quads`: QR corner coordinates
+* `methods`: Decoding methods used
+
+---
+
+## Limitations
 
 The module uses multiple detection and decoding strategies to improve reliability. However, severely damaged, heavily blurred, extremely low-resolution, or partially missing QR codes may still be impossible to decode.
+
+````
