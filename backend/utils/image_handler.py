@@ -119,88 +119,15 @@ def calculate_bbox_metrics(points: List[List[float]]) -> dict:
 
 def enhance_for_qr(cv2_img: np.ndarray) -> List[Tuple[str, np.ndarray]]:
     """
-    Generate standard OpenCV image processing variations to aid QR detection
-    on low-contrast, dim, overexposed, blurry, or noisy document scans.
-    Strictly uses OpenCV and NumPy image processing.
+    Generate image processing variations to aid QR detection.
+    # ponytail: Keep it simple. Just grayscale and one standard sharpening pass for blurry images.
     """
     if cv2_img is None or cv2_img.size == 0:
         return []
 
-    variants = []
-
-    # 1. Grayscale base
-    if len(cv2_img.shape) == 3 and cv2_img.shape[2] == 3:
-        gray = cv2.cvtColor(cv2_img, cv2.COLOR_BGR2GRAY)
-    else:
-        gray = cv2_img.copy()
-    variants.append(("grayscale", gray))
-
-    # 2. Standard CLAHE (Contrast Limited Adaptive Histogram Equalization)
-    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
-    clahe_img = clahe.apply(gray)
-    variants.append(("clahe", clahe_img))
-
-    # 3. Strong CLAHE (for very low-contrast / washed-out document scans)
-    clahe_strong = cv2.createCLAHE(clipLimit=4.0, tileGridSize=(8, 8))
-    clahe_strong_img = clahe_strong.apply(gray)
-    variants.append(("clahe_strong", clahe_strong_img))
-
-    # 4. Unsharp Mask Deblurring (for blurry camera or scanner captures)
-    blurred = cv2.GaussianBlur(gray, (0, 0), sigmaX=2.0)
-    unsharp = cv2.addWeighted(gray, 1.8, blurred, -0.8, 0)
-    variants.append(("unsharp_deblur", unsharp))
-
-    # 5. Bilateral Filter Denoising (preserves sharp QR module edges while smoothing noise)
-    denoised = cv2.bilateralFilter(gray, d=7, sigmaColor=50, sigmaSpace=50)
-    variants.append(("bilateral_denoise", denoised))
-
-    # 6. Gamma Correction for Dim / Underexposed Images (gamma=0.5 boost)
-    table_dim = np.array([((i / 255.0) ** (1.0 / 0.5)) * 255 for i in np.arange(0, 256)]).astype("uint8")
-    brightened = cv2.LUT(gray, table_dim)
-    variants.append(("brightened_gamma", brightened))
-
-    # 7. Gamma Correction for Overexposed / Washed-out Images (gamma=1.8)
-    table_bright = np.array([((i / 255.0) ** (1.0 / 1.8)) * 255 for i in np.arange(0, 256)]).astype("uint8")
-    darkened = cv2.LUT(gray, table_bright)
-    variants.append(("darkened_gamma", darkened))
-
-    # 8. Min-Max Contrast Normalization
-    normalized = cv2.normalize(gray, None, alpha=0, beta=255, norm_type=cv2.NORM_MINMAX)
-    variants.append(("contrast_normalized", normalized))
-
-    # 9. Otsu Thresholding
-    _, otsu = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-    variants.append(("otsu", otsu))
-
-    # 10. CLAHE + Otsu Thresholding
-    _, clahe_otsu = cv2.threshold(clahe_img, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-    variants.append(("clahe_otsu", clahe_otsu))
-
-    # 11. Adaptive Gaussian Thresholding
-    adaptive_gauss = cv2.adaptiveThreshold(
-        gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 21, 5
-    )
-    variants.append(("adaptive_thresh", adaptive_gauss))
-
-    # 12. Adaptive Mean Thresholding (robust for gradient lighting across card)
-    adaptive_mean = cv2.adaptiveThreshold(
-        gray, 255, cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY, 25, 7
-    )
-    variants.append(("adaptive_mean", adaptive_mean))
-
-    # 13. Sharpening kernel
+    gray = cv2.cvtColor(cv2_img, cv2.COLOR_BGR2GRAY) if len(cv2_img.shape) == 3 else cv2_img
+    
     sharpen_kernel = np.array([[0, -1, 0], [-1, 5, -1], [0, -1, 0]], dtype=np.float32)
     sharpened = cv2.filter2D(gray, -1, sharpen_kernel)
-    variants.append(("sharpened", sharpened))
-
-    # 14. Morphological Close (reconnects broken / degraded QR module pixels)
-    kernel_close = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
-    morph_close = cv2.morphologyEx(gray, cv2.MORPH_CLOSE, kernel_close)
-    variants.append(("morph_close", morph_close))
-
-    # 15. Illumination Normalization (eliminates severe shadow gradients across card)
-    bg = cv2.medianBlur(gray, 51)
-    norm_illum = cv2.divide(gray, np.maximum(bg, 1), scale=255).astype(np.uint8)
-    variants.append(("illumination_normalized", norm_illum))
-
-    return variants
+    
+    return [("grayscale", gray), ("sharpened", sharpened)]

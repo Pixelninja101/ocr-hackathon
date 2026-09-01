@@ -132,71 +132,21 @@ class QRProcessor:
                     scale_down,
                 )
 
+        # ponytail: Manual 90/180/270 rotations are YAGNI (QR finders are natively rotation invariant).
+        # ponytail: Replaced massive scaling/enhancement passes with a simple native 4-quadrant overlap tile scan.
         if not detected_codes:
-            for scale in (2.0, 3.0, 4.0):
-
-                scaled_quads, scaled_texts, scaled_methods = (
-                    self._detect_at_scale(
-                        search_canvas,
-                        scale,
-                    )
-                )
-
-                if scaled_quads:
-                    self._append_codes(
-                        detected_codes,
-                        scaled_quads,
-                        scaled_texts,
-                        scaled_methods,
-                        scale_down,
-                    )
-                    break
-
-        if not detected_codes:
-            enhancements = enhance_for_qr(search_canvas)
-
-            for var_name, enhanced_img in enhancements:
-
-                e_det, e_texts, e_quads, e_methods = (
-                    self.decoder.detect_and_decode_multi(
-                        enhanced_img
-                    )
-                )
-
-                if e_det and e_quads:
-                    self._append_codes(
-                        detected_codes,
-                        e_quads,
-                        e_texts,
-                        [
-                            f"enhanced_{var_name}" if m else ""
-                            for m in e_methods
-                        ],
-                        scale_down,
-                    )
-                    break
-
-                try:
-                    geometry_found, geometry_quads = (
-                        self.detector_wrapper.detect_multi(
-                            enhanced_img
-                        )
-                    )
-
-                    if geometry_found and geometry_quads:
-                        self._append_codes(
-                            detected_codes,
-                            geometry_quads,
-                            [""] * len(geometry_quads),
-                            [
-                                f"geometry_enhanced_{var_name}"
-                            ] * len(geometry_quads),
-                            scale_down,
-                        )
-                        break
-
-                except Exception:
-                    pass
+            h, w = search_canvas.shape[:2]
+            tiles = [
+                (0, 0, search_canvas[0:h*2//3, 0:w*2//3]),
+                (0, w//3, search_canvas[0:h*2//3, w//3:w]),
+                (h//3, 0, search_canvas[h//3:h, 0:w*2//3]),
+                (h//3, w//3, search_canvas[h//3:h, w//3:w])
+            ]
+            for dy, dx, tile in tiles:
+                t_det, t_texts, t_quads, t_methods = self.decoder.detect_and_decode_multi(tile)
+                if t_det and t_quads:
+                    mapped_quads = [q + np.array([dx, dy], dtype=np.float32) for q in t_quads]
+                    self._append_codes(detected_codes, mapped_quads, t_texts, t_methods, scale_down)
 
         for code in detected_codes:
 
