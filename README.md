@@ -1,71 +1,72 @@
-# Personna: AI-Based Fake Identity and Document Screening System
+# AI-Based Identity Document Verification and QR Detection System
 
-A modular document processing and verification system for web-based identity screening.
+A web-based AI-powered system for identity document verification, OCR, QR code detection and decoding, Aadhaar Secure QR handling, payload classification, and information cross-validation.
 
-Personna combines OCR, QR code processing, Aadhaar Secure QR parsing, and document validation to extract and analyse information from identity documents. The current system is designed to process uploaded documents through a web interface and return structured results.
+The system combines document processing, OCR, QR detection, multi-stage QR decoding, Aadhaar Secure QR processing, and structured result generation. It is designed to analyse uploaded identity documents and present extracted and decoded information in a structured format.
+
+The system processes document images and PDF files. Its QR module uses a multi-stage detection and decoding pipeline to handle real-world conditions such as rotation, perspective distortion, low resolution, dense QR payloads, uneven lighting, noise, and camera-captured images.
 
 ## Features
 
-- File validation and document image processing
-- OCR-based extraction of identity information
-- Aadhaar document detection using multiple signals
+- Safe file validation and PDF page rendering
+- Document image processing and OpenCV preprocessing
+- Aadhaar document detection using text anchors and number patterns
 - Bilingual OCR support for English and Hindi
-- Word-level bounding boxes and confidence scoring
+- Word-level OCR bounding boxes and confidence scoring
 - QR code detection and decoding
-- Support for multiple QR codes in a single image
-- Robust QR decoding for rotated, skewed, dim, noisy, blurry, low-contrast, and low-resolution images
-- Multi-stage image preprocessing and decoding fallbacks
-- Aadhaar Secure QR detection and payload parsing
-- Structured Aadhaar detail extraction
+- Single and multiple QR code support
+- Detection using OpenCV `QRCodeDetectorAruco` and `QRCodeDetector`
+- Support for text and binary QR payloads
+- Robust decoding for rotated, skewed, dim, noisy, blurry, and low-resolution QR codes
+- Perspective correction and multi-scale QR processing
+- Image padding and quiet-zone handling
+- CLAHE contrast enhancement
+- Otsu and adaptive thresholding
+- Image sharpening and inversion
+- QR-region cropping and upscaling
+- OpenCV-based multi-stage decoding
+- Optional ZXing-C++ fallback decoding
+- QR bounding boxes and geometry extraction
+- Coordinate mapping to the original image
+- Duplicate QR detection removal
+- Aadhaar and e-Aadhaar Secure QR identification
 - Raw QR payload preservation
-- Cross-validation of OCR and QR data
+- Payload classification
+- OCR and QR information cross-validation
+- Structured JSON results
+- Automated backend testing
 
 ---
 
-## QR Detection and Decoding
-
-The QR module uses a multi-stage detection and decoding pipeline to handle different image conditions.
-
-The pipeline includes:
-
-- OpenCV QR code detection
-- Support for multiple QR codes
-- Direct decoding
-- Multi-QR decoding
-- Image padding
-- Perspective rectification
-- Grayscale conversion
-- CLAHE contrast enhancement
-- Otsu and adaptive thresholding
-- Sharpening and inversion
-- Multi-scale upscaling
-- QR-region cropping
-- ZXing-C++ fallback decoding
-
-The decoder progressively applies fallback methods when a QR cannot be decoded directly.
+## System Architecture
 
 ```text
-Input Image
-     |
-     v
-QR Detection
-     |
-     v
-Direct QR Decoding
-     |
-     +----> Success
-     |
-     v
-Padding and Rectification
-     |
-     v
-Image Preprocessing Variants
-     |
-     v
-Multi-Scale Decoding
-     |
-     v
-OpenCV / ZXing Fallback
-     |
-     v
-Decoded QR Payload
+                    Frontend
+                 React + Vite
+                       |
+                       | HTTP
+                       v
+                 FastAPI Backend
+                       |
+                       v
+                Document Processor
+                       |
+          +------------+------------+
+          |                         |
+          v                         v
+      OCR Pipeline              QR Processor
+          |                         |
+          |              +----------+----------+
+          |              |                     |
+          v              v                     v
+   Document Details   QR Detector          QR Decoder
+                         OpenCV            Multi-stage
+                                              |
+                                              v
+                                       Payload Parser
+                                              |
+                                              v
+                                      Result / Validation
+                                              |
+                                              v
+                                     Human-readable UI
